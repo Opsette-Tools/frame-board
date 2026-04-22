@@ -269,12 +269,10 @@ export function MarkupCanvas({
                 <Rect
                   key={a.id}
                   id={`zone-${a.id}`}
-                  x={a.x * scale + 0}
-                  y={a.y * scale + 0}
+                  x={a.x * scale}
+                  y={a.y * scale}
                   width={(a.width ?? 0) * scale}
                   height={(a.height ?? 0) * scale}
-                  offsetX={-pos.x / 1 + pos.x}
-                  // We position relative to the layer; layer doesn't get pos shift, but stage does.
                   fill={statusColor}
                   opacity={a.opacity ?? 0.25}
                   stroke={a.status === "excluded" ? "#8c8c8c" : statusColor}
