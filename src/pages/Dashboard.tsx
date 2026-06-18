@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  Layout,
   Button,
   Card,
   Empty,
@@ -16,13 +15,7 @@ import {
   Tooltip,
   App as AntApp,
 } from "antd";
-import {
-  PlusOutlined,
-  MoreOutlined,
-  BulbOutlined,
-  BulbFilled,
-  ImportOutlined,
-} from "@ant-design/icons";
+import { PlusOutlined, MoreOutlined, ImportOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import {
@@ -34,19 +27,16 @@ import {
   importProjectJson,
 } from "@/lib/storage";
 import { PROJECT_TYPES, type Project, type ProjectType } from "@/types";
-import { useThemeMode } from "@/lib/theme";
 
 dayjs.extend(relativeTime);
 
-const { Header, Content } = Layout;
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 interface CardWithThumb extends Project {
   thumbUrl?: string;
 }
 
 export default function Dashboard() {
-  const { mode, toggle } = useThemeMode();
   const { message, modal } = AntApp.useApp();
   const [projects, setProjects] = useState<CardWithThumb[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
@@ -139,36 +129,24 @@ export default function Dashboard() {
     PROJECT_TYPES.find((pt) => pt.value === t)?.label ?? t;
 
   return (
-    <Layout style={{ minHeight: "100vh" }}>
-      <Header
+    <>
+      <div
         style={{
+          maxWidth: 1200,
+          width: "100%",
+          margin: "0 auto",
+          padding: "16px 16px 0",
           display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 16px",
-          position: "sticky",
-          top: 0,
-          zIndex: 10,
+          justifyContent: "flex-end",
+          gap: 8,
         }}
       >
-        <Title level={4} style={{ color: "#fff", margin: 0 }}>
-          B/A Visual Planner
-        </Title>
-        <Space>
-          <Tooltip title={mode === "dark" ? "Light mode" : "Dark mode"}>
-            <Button
-              type="text"
-              icon={mode === "dark" ? <BulbFilled style={{ color: "#fff" }} /> : <BulbOutlined style={{ color: "#fff" }} />}
-              onClick={toggle}
-            />
-          </Tooltip>
-          <Tooltip title="Import JSON">
-            <Button type="text" icon={<ImportOutlined style={{ color: "#fff" }} />} onClick={handleImportClick} />
-          </Tooltip>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-            New
-          </Button>
-        </Space>
+        <Tooltip title="Import JSON">
+          <Button icon={<ImportOutlined />} onClick={handleImportClick} />
+        </Tooltip>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+          New
+        </Button>
         <input
           ref={importInputRef}
           type="file"
@@ -180,9 +158,9 @@ export default function Dashboard() {
             e.target.value = "";
           }}
         />
-      </Header>
+      </div>
 
-      <Content style={{ padding: "16px", maxWidth: 1200, width: "100%", margin: "0 auto" }}>
+      <div style={{ padding: "16px", maxWidth: 1200, width: "100%", margin: "0 auto" }}>
         {projects.length === 0 ? (
           <Empty
             description="No projects yet. Create one to get started."
@@ -260,7 +238,7 @@ export default function Dashboard() {
             ))}
           </div>
         )}
-      </Content>
+      </div>
 
       <Modal
         title="New project"
@@ -294,6 +272,6 @@ export default function Dashboard() {
           </Form.Item>
         </Form>
       </Modal>
-    </Layout>
+    </>
   );
 }

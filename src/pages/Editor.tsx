@@ -17,8 +17,6 @@ import {
 import {
   ArrowLeftOutlined,
   UploadOutlined,
-  BulbOutlined,
-  BulbFilled,
   ExportOutlined,
   EnvironmentOutlined,
   MessageOutlined,
@@ -36,12 +34,11 @@ import type Konva from "konva";
 import jsPDF from "jspdf";
 import { getProject, saveProject, saveImage, getImageUrl, exportProjectJson } from "@/lib/storage";
 import { STATUS_META, type Annotation, type ImageSide, type Project } from "@/types";
-import { useThemeMode } from "@/lib/theme";
 import { MarkupCanvas } from "@/components/MarkupCanvas";
 import { NotesPanel } from "@/components/NotesPanel";
 import { AnnotationEditor } from "@/components/AnnotationEditor";
 
-const { Header, Content } = Layout;
+const { Content } = Layout;
 const { Title } = Typography;
 
 type ViewMode = "before" | "after" | "compare";
@@ -73,7 +70,6 @@ function useViewportSize() {
 export default function Editor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { mode, toggle } = useThemeMode();
   const { message, modal } = AntApp.useApp();
   const { w: vpW } = useViewportSize();
   const isMobile = vpW < 768;
@@ -342,23 +338,21 @@ export default function Editor() {
   const compareLayout = isMobile ? "column" : "row";
 
   return (
-    <Layout style={{ height: "100dvh", overflow: "hidden" }}>
-      <Header
+    <Layout style={{ height: "calc(100vh - 60px)", overflow: "hidden", background: "transparent" }}>
+      <div
         style={{
-          padding: "0 12px",
+          padding: "8px 12px",
           display: "flex",
           alignItems: "center",
           gap: 12,
-          position: "sticky",
-          top: 0,
-          zIndex: 10,
           flexWrap: "nowrap",
+          borderBottom: "1px solid rgba(127,127,127,0.2)",
         }}
       >
         <Link to="/">
-          <Button type="text" icon={<ArrowLeftOutlined style={{ color: "#fff" }} />} />
+          <Button type="text" icon={<ArrowLeftOutlined />} />
         </Link>
-        <Title level={5} style={{ color: "#fff", margin: 0, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <Title level={5} style={{ margin: 0, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {project.name}
         </Title>
         <Segmented
@@ -371,13 +365,6 @@ export default function Editor() {
             { label: "Compare", value: "compare" },
           ]}
         />
-        <Tooltip title={mode === "dark" ? "Light" : "Dark"}>
-          <Button
-            type="text"
-            icon={mode === "dark" ? <BulbFilled style={{ color: "#fff" }} /> : <BulbOutlined style={{ color: "#fff" }} />}
-            onClick={toggle}
-          />
-        </Tooltip>
         <Dropdown
           menu={{
             items: [
@@ -391,9 +378,9 @@ export default function Editor() {
         >
           <Button type="primary" icon={<ExportOutlined />}>{isMobile ? "" : "Export"}</Button>
         </Dropdown>
-      </Header>
+      </div>
 
-      <Layout style={{ flex: 1, minHeight: 0 }}>
+      <Layout style={{ flex: 1, minHeight: 0, background: "transparent" }}>
         <Content style={{ display: "flex", flexDirection: "column", minHeight: 0, position: "relative" }}>
           {/* Side upload toolbars */}
           <div style={{ display: "flex", padding: 8, gap: 8, justifyContent: "center", background: "var(--ant-color-bg-elevated, transparent)", borderBottom: "1px solid rgba(127,127,127,0.2)" }}>

@@ -44,8 +44,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         theme={{
           algorithm: mode === "dark" ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
           token: {
-            colorPrimary: "#1677ff",
+            colorPrimary: "#2f4f46",
             borderRadius: 8,
+            fontFamily:
+              "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
           },
         }}
       >
