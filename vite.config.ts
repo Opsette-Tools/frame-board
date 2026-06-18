@@ -5,13 +5,11 @@ import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
-  // Use relative base so the build works on GitHub Pages under any subpath
-  // and inside the Lovable preview alike.
-  base: "./",
+export default defineConfig(({ command, mode }) => ({
+  base: command === "build" ? "/frame-board/" : "/",
   server: {
     host: "::",
-    port: 8080,
+    port: 8120,
     hmr: {
       overlay: false,
     },
@@ -23,34 +21,9 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       injectRegister: null, // we handle registration manually with a guard
       devOptions: { enabled: false },
-      includeAssets: ["favicon.ico", "robots.txt"],
-      manifest: {
-        name: "Before / After Visual Planner",
-        short_name: "B/A Planner",
-        description:
-          "Mobile-first visual planner for service pros: upload before/after photos and add structured markup, zones, pins, and notes.",
-        theme_color: "#1677ff",
-        background_color: "#ffffff",
-        display: "standalone",
-        orientation: "portrait",
-        start_url: "./",
-        scope: "./",
-        icons: [
-          {
-            src: "pwa-192.png",
-            sizes: "192x192",
-            type: "image/png",
-            purpose: "any maskable",
-          },
-          {
-            src: "pwa-512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "any maskable",
-          },
-        ],
-      },
+      manifest: false,
       workbox: {
+        navigateFallback: "index.html",
         navigateFallbackDenylist: [/^\/~oauth/],
         globPatterns: ["**/*.{js,css,html,svg,png,ico,webp}"],
       },
