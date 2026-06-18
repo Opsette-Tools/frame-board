@@ -1,99 +1,37 @@
-// Core data model for the Before/After Visual Planner
+// Core data model for Frame Board.
+//
+// A Board is a single comparison the user is working on: a set of frames
+// (each an image + a caption) arranged in a layout. Everything lives locally
+// — board metadata in localStorage, image blobs in IndexedDB. There is no
+// "projects" concept; the app restores the last board on open.
 
-export type ImageSide = "before" | "after";
+export type LayoutKind = "side-by-side";
 
-export type AnnotationStatus =
-  | "included"
-  | "excluded"
-  | "attention"
-  | "completed"
-  | "optional";
-
-export type PinKind =
-  | "standard"
-  | "numbered"
-  | "warning"
-  | "check"
-  | "issue";
-
-export type ZoneShape = "rect" | "roundedRect";
-
-export type AnnotationType = "pin" | "callout" | "zone";
-
-export interface Annotation {
+export interface Frame {
   id: string;
-  imageSide: ImageSide;
-  type: AnnotationType;
-  // For pins / callouts: the anchor point. For zones: top-left.
-  x: number;
-  y: number;
-  // Zones use width/height. Pins ignore.
-  width?: number;
-  height?: number;
-  // Callouts: the position of the label box (x,y is the anchor point)
-  labelX?: number;
-  labelY?: number;
-  // Pin-specific
-  pinKind?: PinKind;
-  pinNumber?: number;
-  // Zone-specific
-  zoneShape?: ZoneShape;
-  opacity?: number;
-  // Common
-  title: string;
-  note: string;
-  status: AnnotationStatus;
-  color: string;
-  createdAt: number;
+  /** Key of the image blob in IndexedDB, if an image has been uploaded. */
+  imageId?: string;
+  /** Editable caption shown under the frame and on the export. */
+  caption: string;
+}
+
+export interface Board {
+  /** Schema version, so future migrations can detect old saved boards. */
+  schema: 1;
+  layout: LayoutKind;
+  frames: Frame[];
   updatedAt: number;
 }
 
-export type ProjectType =
-  | "cleaning"
-  | "landscaping"
-  | "moving"
-  | "organization"
-  | "punchlist"
-  | "general";
-
-export interface Project {
-  id: string;
-  name: string;
-  type: ProjectType;
-  createdAt: number;
-  updatedAt: number;
-  beforeImageId?: string;
-  afterImageId?: string;
-  annotations: Annotation[];
-  settings?: {
-    defaultStatus?: AnnotationStatus;
+/** A fresh two-frame before/after board. */
+export function createBoard(): Board {
+  return {
+    schema: 1,
+    layout: "side-by-side",
+    frames: [
+      { id: crypto.randomUUID(), caption: "Before" },
+      { id: crypto.randomUUID(), caption: "After" },
+    ],
+    updatedAt: Date.now(),
   };
 }
-
-export const PROJECT_TYPES: { value: ProjectType; label: string }[] = [
-  { value: "cleaning", label: "Cleaning walkthrough" },
-  { value: "landscaping", label: "Landscaping scope" },
-  { value: "moving", label: "Moving prep" },
-  { value: "organization", label: "Home organization" },
-  { value: "punchlist", label: "Contractor punch list" },
-  { value: "general", label: "General service review" },
-];
-
-export const STATUS_META: Record<
-  AnnotationStatus,
-  { label: string; color: string; badge: "success" | "error" | "warning" | "processing" | "default" }
-> = {
-  included: { label: "Included", color: "#1677ff", badge: "processing" },
-  excluded: { label: "Excluded", color: "#8c8c8c", badge: "default" },
-  attention: { label: "Needs attention", color: "#faad14", badge: "warning" },
-  completed: { label: "Completed", color: "#52c41a", badge: "success" },
-  optional: { label: "Optional", color: "#722ed1", badge: "default" },
-};
-
-export const PIN_KIND_META: Record<PinKind, { label: string; color: string }> = {
-  standard: { label: "Pin", color: "#1677ff" },
-  numbered: { label: "Numbered", color: "#1677ff" },
-  warning: { label: "Warning", color: "#faad14" },
-  check: { label: "Complete", color: "#52c41a" },
-  issue: { label: "Issue", color: "#ff4d4f" },
-};
