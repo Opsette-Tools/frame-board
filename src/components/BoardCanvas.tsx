@@ -11,6 +11,7 @@ interface BoardCanvasProps {
   onUpload: (frameId: string, file: File) => void;
   onRemoveImage: (frameId: string) => void;
   onCaptionChange: (frameId: string, caption: string) => void;
+  onBackgroundChange: (frameId: string, background: string) => void;
   /** Render in export mode (no controls, plain captions). */
   exporting?: boolean;
 }
@@ -21,7 +22,7 @@ interface BoardCanvasProps {
  * to html2canvas for export.
  */
 const BoardCanvas = forwardRef<HTMLDivElement, BoardCanvasProps>(function BoardCanvas(
-  { board, imageUrls, isDark, isMobile, onUpload, onRemoveImage, onCaptionChange, exporting = false },
+  { board, imageUrls, isDark, isMobile, onUpload, onRemoveImage, onCaptionChange, onBackgroundChange, exporting = false },
   ref,
 ) {
   // side-by-side: row on desktop, stacked on mobile. Export always uses a row
@@ -50,6 +51,7 @@ const BoardCanvas = forwardRef<HTMLDivElement, BoardCanvasProps>(function BoardC
             onUpload={(file) => onUpload(frame.id, file)}
             onRemoveImage={() => onRemoveImage(frame.id)}
             onCaptionChange={(caption) => onCaptionChange(frame.id, caption)}
+            onBackgroundChange={(background) => onBackgroundChange(frame.id, background)}
           />
         </div>
       ))}

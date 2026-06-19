@@ -1,7 +1,7 @@
 import { useRef } from "react";
-import { Button, Input, Upload } from "antd";
+import { Button, ColorPicker, Input, Upload } from "antd";
 import { PlusOutlined, SwapOutlined, DeleteOutlined } from "@ant-design/icons";
-import type { Frame } from "@/types";
+import { FRAME_BG_PRESETS, type Frame } from "@/types";
 
 interface FrameCardProps {
   frame: Frame;
@@ -11,6 +11,7 @@ interface FrameCardProps {
   onUpload: (file: File) => void;
   onRemoveImage: () => void;
   onCaptionChange: (caption: string) => void;
+  onBackgroundChange: (background: string) => void;
   /** When true (export render), hide interactive controls and show plain text. */
   exporting?: boolean;
 }
@@ -22,13 +23,13 @@ export default function FrameCard({
   onUpload,
   onRemoveImage,
   onCaptionChange,
+  onBackgroundChange,
   exporting = false,
 }: FrameCardProps) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const surface = isDark ? "#141414" : "#ffffff";
   const border = isDark ? "#303030" : "#e5e7eb";
-  const emptyBg = isDark ? "#1d1d1d" : "#f8fafc";
 
   const pickFile = () => fileRef.current?.click();
 
@@ -51,45 +52,20 @@ export default function FrameCard({
           aspectRatio: "4 / 3",
           borderRadius: 8,
           overflow: "hidden",
-          background: emptyBg,
+          // The frame's chosen background sits behind the image, so a logo with
+          // white/transparent areas reads against it — and bakes into the export.
+          background: frame.background,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
         {imageUrl ? (
-          <>
-            <img
-              src={imageUrl}
-              alt={frame.caption}
-              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-            />
-            {!exporting && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: 8,
-                  right: 8,
-                  display: "flex",
-                  gap: 6,
-                }}
-              >
-                <Button
-                  size="small"
-                  icon={<SwapOutlined />}
-                  onClick={pickFile}
-                  title="Replace photo"
-                />
-                <Button
-                  size="small"
-                  danger
-                  icon={<DeleteOutlined />}
-                  onClick={onRemoveImage}
-                  title="Remove photo"
-                />
-              </div>
-            )}
-          </>
+          <img
+            src={imageUrl}
+            alt={frame.caption}
+            style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+          />
         ) : (
           !exporting && (
             <Upload.Dragger
@@ -110,6 +86,27 @@ export default function FrameCard({
               </p>
             </Upload.Dragger>
           )
+        )}
+
+        {/* Always-visible background picker (hidden only in export render). */}
+        {!exporting && (
+          <div style={{ position: "absolute", top: 8, left: 8 }}>
+            <ColorPicker
+              value={frame.background}
+              onChangeComplete={(c) => onBackgroundChange(c.toHexString())}
+              presets={[{ label: "Backgrounds", colors: FRAME_BG_PRESETS.map((p) => p.color) }]}
+              size="small"
+              title="Frame background"
+            />
+          </div>
+        )}
+
+        {/* Replace / remove controls when an image is present. */}
+        {imageUrl && !exporting && (
+          <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 6 }}>
+            <Button size="small" icon={<SwapOutlined />} onClick={pickFile} title="Replace photo" />
+            <Button size="small" danger icon={<DeleteOutlined />} onClick={onRemoveImage} title="Remove photo" />
+          </div>
         )}
       </div>
 

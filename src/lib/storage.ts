@@ -1,6 +1,6 @@
 import { openDB, type IDBPDatabase } from "idb";
 import type { Board } from "@/types";
-import { createBoard } from "@/types";
+import { createBoard, DEFAULT_FRAME_BG } from "@/types";
 
 // Frame Board persistence.
 //
@@ -39,7 +39,11 @@ export function loadBoard(): Board {
     if (!raw) return createBoard();
     const parsed = JSON.parse(raw) as Board;
     if (parsed?.schema !== 1 || !Array.isArray(parsed.frames)) return createBoard();
-    return parsed;
+    // Backfill fields added after a board was first saved.
+    return {
+      ...parsed,
+      frames: parsed.frames.map((f) => ({ ...f, background: f.background ?? DEFAULT_FRAME_BG })),
+    };
   } catch {
     return createBoard();
   }

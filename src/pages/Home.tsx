@@ -39,6 +39,10 @@ export default function Home({ setHeaderActions }: HomeProps) {
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [exporting, setExporting] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
+  // Tracks every object URL we've created, so we can revoke only on real
+  // unmount — never as a side effect of state changes (which would blank live
+  // <img> tags under React StrictMode's double-invoked effects).
+  const urlsRef = useRef<Record<string, string>>({});
 
   // Persist board metadata whenever it changes.
   useEffect(() => {
@@ -46,34 +50,34 @@ export default function Home({ setHeaderActions }: HomeProps) {
   }, [board]);
 
   // Resolve object URLs for any image ids referenced by the board that we
-  // haven't loaded yet (e.g. on first mount after a refresh).
+  // haven't loaded yet (e.g. on first mount after a refresh). Keyed only on the
+  // set of imageIds — NOT on imageUrls — so adding a URL doesn't re-trigger it.
+  const imageIdKey = board.frames.map((f) => f.imageId ?? "").join(",");
   useEffect(() => {
     let active = true;
     const needed = board.frames.map((f) => f.imageId).filter((id): id is string => !!id);
-    const missing = needed.filter((id) => !imageUrls[id]);
+    const missing = needed.filter((id) => !urlsRef.current[id]);
     if (missing.length === 0) return;
     (async () => {
       const entries = await Promise.all(
         missing.map(async (id) => [id, await getImageUrl(id)] as const),
       );
       if (!active) return;
-      setImageUrls((prev) => {
-        const next = { ...prev };
-        for (const [id, url] of entries) if (url) next[id] = url;
-        return next;
-      });
+      const resolved = entries.filter((e): e is [string, string] => !!e[1]);
+      for (const [id, url] of resolved) urlsRef.current[id] = url;
+      setImageUrls({ ...urlsRef.current });
     })();
     return () => {
       active = false;
     };
-  }, [board.frames, imageUrls]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imageIdKey]);
 
-  // Revoke all object URLs on unmount.
+  // Revoke every created URL only when the page truly unmounts.
   useEffect(() => {
     return () => {
-      Object.values(imageUrls).forEach((url) => URL.revokeObjectURL(url));
+      Object.values(urlsRef.current).forEach((url) => URL.revokeObjectURL(url));
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleUpload = useCallback(
@@ -85,27 +89,40 @@ export default function Home({ setHeaderActions }: HomeProps) {
       const imageId = crypto.randomUUID();
       await saveImage(imageId, file);
       const url = URL.createObjectURL(file);
+      urlsRef.current[imageId] = url;
       setBoard((prev) => {
         const frame = prev.frames.find((f) => f.id === frameId);
         const oldId = frame?.imageId;
-        // Revoke the URL of any replaced image.
-        if (oldId && imageUrls[oldId]) URL.revokeObjectURL(imageUrls[oldId]);
+        // Revoke + drop the URL of any replaced image.
+        if (oldId && urlsRef.current[oldId]) {
+          URL.revokeObjectURL(urlsRef.current[oldId]);
+          delete urlsRef.current[oldId];
+        }
         return {
           ...prev,
           frames: prev.frames.map((f) => (f.id === frameId ? { ...f, imageId } : f)),
         };
       });
-      setImageUrls((prev) => ({ ...prev, [imageId]: url }));
+      setImageUrls({ ...urlsRef.current });
     },
-    [imageUrls, message],
+    [message],
   );
 
   const handleRemoveImage = useCallback(
     (frameId: string) => {
-      setBoard((prev) => ({
-        ...prev,
-        frames: prev.frames.map((f) => (f.id === frameId ? { ...f, imageId: undefined } : f)),
-      }));
+      setBoard((prev) => {
+        const frame = prev.frames.find((f) => f.id === frameId);
+        const oldId = frame?.imageId;
+        if (oldId && urlsRef.current[oldId]) {
+          URL.revokeObjectURL(urlsRef.current[oldId]);
+          delete urlsRef.current[oldId];
+        }
+        return {
+          ...prev,
+          frames: prev.frames.map((f) => (f.id === frameId ? { ...f, imageId: undefined } : f)),
+        };
+      });
+      setImageUrls({ ...urlsRef.current });
     },
     [],
   );
@@ -117,6 +134,13 @@ export default function Home({ setHeaderActions }: HomeProps) {
     }));
   }, []);
 
+  const handleBackgroundChange = useCallback((frameId: string, background: string) => {
+    setBoard((prev) => ({
+      ...prev,
+      frames: prev.frames.map((f) => (f.id === frameId ? { ...f, background } : f)),
+    }));
+  }, []);
+
   const handleNew = useCallback(() => {
     modal.confirm({
       title: "Start a new board?",
@@ -125,12 +149,13 @@ export default function Home({ setHeaderActions }: HomeProps) {
       onOk: async () => {
         const fresh = createBoard();
         setBoard(fresh);
-        Object.values(imageUrls).forEach((url) => URL.revokeObjectURL(url));
+        Object.values(urlsRef.current).forEach((url) => URL.revokeObjectURL(url));
+        urlsRef.current = {};
         setImageUrls({});
         await pruneImages([]);
       },
     });
-  }, [imageUrls, modal]);
+  }, [modal]);
 
   const hasAnyImage = board.frames.some((f) => f.imageId);
 
@@ -194,6 +219,7 @@ export default function Home({ setHeaderActions }: HomeProps) {
         onUpload={handleUpload}
         onRemoveImage={handleRemoveImage}
         onCaptionChange={handleCaptionChange}
+        onBackgroundChange={handleBackgroundChange}
       />
 
       {/* Offscreen export render: a clean, row-oriented capture target. */}
@@ -209,6 +235,7 @@ export default function Home({ setHeaderActions }: HomeProps) {
             onUpload={() => {}}
             onRemoveImage={() => {}}
             onCaptionChange={() => {}}
+            onBackgroundChange={() => {}}
           />
         )}
       </div>

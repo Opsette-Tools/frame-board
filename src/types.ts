@@ -13,7 +13,25 @@ export interface Frame {
   imageId?: string;
   /** Editable caption shown under the frame and on the export. */
   caption: string;
+  /**
+   * Background color behind the image, baked into the export. Lets a logo with
+   * white or transparent areas sit on a contrasting color independently of the
+   * other frames. Defaults to white.
+   */
+  background: string;
 }
+
+/** Default background for a frame's image area. */
+export const DEFAULT_FRAME_BG = "#ffffff";
+
+/** Quick-pick swatches offered in the frame background picker. */
+export const FRAME_BG_PRESETS: { color: string; label: string }[] = [
+  { color: "#ffffff", label: "White" },
+  { color: "#f1f5f9", label: "Light gray" },
+  { color: "#1f2937", label: "Charcoal" },
+  { color: "#2f4f46", label: "Opsette green" },
+  { color: "#0f172a", label: "Navy" },
+];
 
 export interface Board {
   /** Schema version, so future migrations can detect old saved boards. */
@@ -29,8 +47,8 @@ export function createBoard(): Board {
     schema: 1,
     layout: "side-by-side",
     frames: [
-      { id: crypto.randomUUID(), caption: "Before" },
-      { id: crypto.randomUUID(), caption: "After" },
+      { id: crypto.randomUUID(), caption: "Before", background: DEFAULT_FRAME_BG },
+      { id: crypto.randomUUID(), caption: "After", background: DEFAULT_FRAME_BG },
     ],
     updatedAt: Date.now(),
   };
