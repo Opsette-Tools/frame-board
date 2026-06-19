@@ -1,6 +1,6 @@
 import { openDB, type IDBPDatabase } from "idb";
 import type { Board } from "@/types";
-import { createBoard, DEFAULT_FRAME_BG } from "@/types";
+import { createBoard, fitFramesToLayout, DEFAULT_FRAME_BG, LAYOUTS, type LayoutKind } from "@/types";
 
 // Frame Board persistence.
 //
@@ -37,12 +37,17 @@ export function loadBoard(): Board {
   try {
     const raw = localStorage.getItem(BOARD_KEY);
     if (!raw) return createBoard();
-    const parsed = JSON.parse(raw) as Board;
+    const parsed = JSON.parse(raw) as Board & { layout: string };
     if (parsed?.schema !== 1 || !Array.isArray(parsed.frames)) return createBoard();
-    // Backfill fields added after a board was first saved.
+    // Backfill / migrate fields added after a board was first saved.
+    const layout: LayoutKind = parsed.layout in LAYOUTS ? (parsed.layout as LayoutKind) : "two-up";
+    const frames = parsed.frames.map((f) => ({ ...f, background: f.background ?? DEFAULT_FRAME_BG }));
     return {
       ...parsed,
-      frames: parsed.frames.map((f) => ({ ...f, background: f.background ?? DEFAULT_FRAME_BG })),
+      layout,
+      orientation: parsed.orientation ?? "horizontal",
+      // Ensure frame count matches the (possibly migrated) layout.
+      frames: fitFramesToLayout(frames, layout),
     };
   } catch {
     return createBoard();

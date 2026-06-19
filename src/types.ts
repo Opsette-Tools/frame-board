@@ -5,7 +5,10 @@
 // — board metadata in localStorage, image blobs in IndexedDB. There is no
 // "projects" concept; the app restores the last board on open.
 
-export type LayoutKind = "side-by-side";
+export type LayoutKind = "two-up" | "three-up" | "grid-2x2";
+
+/** For two-up: lay the pair across (row) or stacked (column) in the export. */
+export type Orientation = "horizontal" | "vertical";
 
 export interface Frame {
   id: string;
@@ -37,19 +40,56 @@ export interface Board {
   /** Schema version, so future migrations can detect old saved boards. */
   schema: 1;
   layout: LayoutKind;
+  /** Only meaningful for two-up; ignored by multi-frame layouts. */
+  orientation: Orientation;
   frames: Frame[];
   updatedAt: number;
+}
+
+/** How many frames each layout shows, and its CSS grid spec. */
+export const LAYOUTS: Record<
+  LayoutKind,
+  { label: string; frameCount: number; columns: number }
+> = {
+  "two-up": { label: "2-up", frameCount: 2, columns: 2 },
+  "three-up": { label: "3-up", frameCount: 3, columns: 3 },
+  "grid-2x2": { label: "2×2 grid", frameCount: 4, columns: 2 },
+};
+
+/** Default captions used when frames are auto-added. */
+const DEFAULT_CAPTIONS = ["Before", "After", "Then", "Now"];
+
+export function makeFrame(caption = ""): Frame {
+  return { id: crypto.randomUUID(), caption, background: DEFAULT_FRAME_BG };
+}
+
+/**
+ * Add or remove frames so the board has exactly the count its layout needs.
+ * Filled frames are kept ahead of empty ones when trimming, so switching to a
+ * smaller layout never silently drops a photo you uploaded.
+ */
+export function fitFramesToLayout(frames: Frame[], layout: LayoutKind): Frame[] {
+  const target = LAYOUTS[layout].frameCount;
+  if (frames.length === target) return frames;
+  if (frames.length < target) {
+    const added = Array.from({ length: target - frames.length }, (_, i) =>
+      makeFrame(DEFAULT_CAPTIONS[frames.length + i] ?? ""),
+    );
+    return [...frames, ...added];
+  }
+  // Trimming: keep frames with images first, then by original order, up to target.
+  const ordered = [...frames].sort((a, b) => Number(!!b.imageId) - Number(!!a.imageId));
+  const keep = new Set(ordered.slice(0, target).map((f) => f.id));
+  return frames.filter((f) => keep.has(f.id));
 }
 
 /** A fresh two-frame before/after board. */
 export function createBoard(): Board {
   return {
     schema: 1,
-    layout: "side-by-side",
-    frames: [
-      { id: crypto.randomUUID(), caption: "Before", background: DEFAULT_FRAME_BG },
-      { id: crypto.randomUUID(), caption: "After", background: DEFAULT_FRAME_BG },
-    ],
+    layout: "two-up",
+    orientation: "horizontal",
+    frames: [makeFrame("Before"), makeFrame("After")],
     updatedAt: Date.now(),
   };
 }

@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, App as AntApp } from "antd";
-import { PlusOutlined, DownloadOutlined } from "@ant-design/icons";
+import { Button, Segmented, Tooltip, App as AntApp } from "antd";
+import {
+  PlusOutlined,
+  DownloadOutlined,
+  ColumnWidthOutlined,
+  ColumnHeightOutlined,
+} from "@ant-design/icons";
 import html2canvas from "html2canvas";
 import { useThemeMode } from "@/lib/theme";
 import {
@@ -10,7 +15,14 @@ import {
   getImageUrl,
   pruneImages,
 } from "@/lib/storage";
-import { createBoard, type Board } from "@/types";
+import {
+  createBoard,
+  fitFramesToLayout,
+  LAYOUTS,
+  type Board,
+  type LayoutKind,
+  type Orientation,
+} from "@/types";
 import BoardCanvas from "@/components/BoardCanvas";
 
 function useViewportWidth() {
@@ -141,6 +153,20 @@ export default function Home({ setHeaderActions }: HomeProps) {
     }));
   }, []);
 
+  const handleLayoutChange = useCallback((layout: LayoutKind) => {
+    setBoard((prev) => {
+      const frames = fitFramesToLayout(prev.frames, layout);
+      // Drop image blobs no longer referenced after trimming frames.
+      const keepIds = frames.map((f) => f.imageId).filter((id): id is string => !!id);
+      void pruneImages(keepIds);
+      return { ...prev, layout, frames };
+    });
+  }, []);
+
+  const handleOrientationChange = useCallback((orientation: Orientation) => {
+    setBoard((prev) => ({ ...prev, orientation }));
+  }, []);
+
   const handleNew = useCallback(() => {
     modal.confirm({
       title: "Start a new board?",
@@ -165,11 +191,25 @@ export default function Home({ setHeaderActions }: HomeProps) {
       return;
     }
     setExporting(true);
-    // Let the offscreen export node render before capturing.
+    // Let the offscreen export node mount.
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     try {
       const node = exportRef.current;
       if (!node) return;
+      // Wait for every image in the export node to actually decode before
+      // capturing — otherwise html2canvas snapshots blank frames whose <img>
+      // tags haven't painted yet (the race got visible at 4 frames).
+      const imgs = Array.from(node.querySelectorAll("img"));
+      await Promise.all(
+        imgs.map((img) =>
+          img.complete && img.naturalWidth > 0
+            ? img.decode().catch(() => undefined)
+            : new Promise<void>((resolve) => {
+                img.addEventListener("load", () => resolve(), { once: true });
+                img.addEventListener("error", () => resolve(), { once: true });
+              }),
+        ),
+      );
       const canvas = await html2canvas(node, {
         backgroundColor: isDark ? "#000000" : "#fafafa",
         scale: 2,
@@ -193,6 +233,34 @@ export default function Home({ setHeaderActions }: HomeProps) {
   const headerActions = useMemo(
     () => (
       <>
+        <Segmented<LayoutKind>
+          size={isMobile ? "small" : "middle"}
+          value={board.layout}
+          onChange={handleLayoutChange}
+          options={(Object.keys(LAYOUTS) as LayoutKind[]).map((k) => ({
+            label: LAYOUTS[k].label,
+            value: k,
+          }))}
+        />
+        {board.layout === "two-up" && (
+          <Tooltip title={board.orientation === "horizontal" ? "Side by side" : "Stacked"}>
+            <Button
+              icon={
+                board.orientation === "horizontal" ? (
+                  <ColumnWidthOutlined />
+                ) : (
+                  <ColumnHeightOutlined />
+                )
+              }
+              onClick={() =>
+                handleOrientationChange(
+                  board.orientation === "horizontal" ? "vertical" : "horizontal",
+                )
+              }
+              aria-label="Toggle orientation"
+            />
+          </Tooltip>
+        )}
         <Button icon={<PlusOutlined />} onClick={handleNew}>
           {isMobile ? "" : "New"}
         </Button>
@@ -201,7 +269,15 @@ export default function Home({ setHeaderActions }: HomeProps) {
         </Button>
       </>
     ),
-    [handleNew, handleExport, isMobile],
+    [
+      board.layout,
+      board.orientation,
+      handleLayoutChange,
+      handleOrientationChange,
+      handleNew,
+      handleExport,
+      isMobile,
+    ],
   );
 
   useEffect(() => {
@@ -222,8 +298,18 @@ export default function Home({ setHeaderActions }: HomeProps) {
         onBackgroundChange={handleBackgroundChange}
       />
 
-      {/* Offscreen export render: a clean, row-oriented capture target. */}
-      <div style={{ position: "fixed", left: -99999, top: 0, width: 1000, pointerEvents: "none" }} aria-hidden>
+      {/* Offscreen export render: a clean capture target that honors the
+          board's real layout/orientation. Wider for 3-up so frames aren't cramped. */}
+      <div
+        style={{
+          position: "fixed",
+          left: -99999,
+          top: 0,
+          width: board.layout === "three-up" ? 1400 : 1000,
+          pointerEvents: "none",
+        }}
+        aria-hidden
+      >
         {exporting && (
           <BoardCanvas
             ref={exportRef}

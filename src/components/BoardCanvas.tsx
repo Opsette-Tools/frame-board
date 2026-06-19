@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import type { Board } from "@/types";
+import { LAYOUTS, type Board } from "@/types";
 import FrameCard from "./FrameCard";
 
 interface BoardCanvasProps {
@@ -25,16 +25,27 @@ const BoardCanvas = forwardRef<HTMLDivElement, BoardCanvasProps>(function BoardC
   { board, imageUrls, isDark, isMobile, onUpload, onRemoveImage, onCaptionChange, onBackgroundChange, exporting = false },
   ref,
 ) {
-  // side-by-side: row on desktop, stacked on mobile. Export always uses a row
-  // so the comparison reads left-to-right regardless of the screen it was made on.
-  const direction = exporting ? "row" : isMobile ? "column" : "row";
+  // Column count per layout. Two-up honors the orientation toggle (1 column =
+  // stacked). On a phone, multi-column layouts collapse to a single column so
+  // frames stay legible — but the export always uses the chosen grid.
+  const layout = LAYOUTS[board.layout];
+  let columns = layout.columns;
+  if (board.layout === "two-up") {
+    columns = board.orientation === "vertical" ? 1 : 2;
+  }
+  if (!exporting && isMobile && board.layout !== "two-up") {
+    columns = 1;
+  }
+  if (!exporting && isMobile && board.layout === "two-up" && board.orientation === "horizontal") {
+    columns = 1;
+  }
 
   return (
     <div
       ref={ref}
       style={{
-        display: "flex",
-        flexDirection: direction,
+        display: "grid",
+        gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
         gap: 16,
         padding: exporting ? 24 : 0,
         background: exporting ? (isDark ? "#000" : "#fafafa") : "transparent",
@@ -42,7 +53,7 @@ const BoardCanvas = forwardRef<HTMLDivElement, BoardCanvasProps>(function BoardC
       }}
     >
       {board.frames.map((frame) => (
-        <div key={frame.id} style={{ flex: 1, minWidth: 0 }}>
+        <div key={frame.id} style={{ minWidth: 0 }}>
           <FrameCard
             frame={frame}
             imageUrl={frame.imageId ? imageUrls[frame.imageId] : undefined}
